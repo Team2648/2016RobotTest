@@ -1,7 +1,6 @@
 
 package org.usfirst.frc.team2648.robot;
 
-import edu.wpi.first.wpilibj.AnalogGyro;
 import edu.wpi.first.wpilibj.BuiltInAccelerometer;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DigitalInput;
@@ -17,7 +16,6 @@ import edu.wpi.first.wpilibj.SpeedController;
 import edu.wpi.first.wpilibj.Talon;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Victor;
-import edu.wpi.first.wpilibj.interfaces.Gyro;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -41,18 +39,15 @@ public class Robot extends IterativeRobot {
 	private DigitalInput light;
 	private Encoder enc;
 	private BuiltInAccelerometer accel;
-	private Gyro gyro;
 	
 	private PIDController controller;
 	private PIDOutput out;
     
 	private double timerStart;
     private double timeToCancel;
-    private double kp = 0.03;
     
     private Compressor comp;
     private DoubleSolenoid inup;
-    private DoubleSolenoid inup2;
 	
     public void robotInit() {
     	j1 = new Joystick(1);
@@ -65,11 +60,9 @@ public class Robot extends IterativeRobot {
     	left = new Victor(1);
     	rd = new RobotDrive(left, right);
     	light = new DigitalInput(3);
-    	gyro = new AnalogGyro(0);
     	
     	comp = new Compressor();
     	inup = new DoubleSolenoid(0,1);
-    	inup2 = new DoubleSolenoid(2,3);
     	
     	enc = new Encoder(0,1,2);
     	enc.setDistancePerPulse(.01227); //.1256 inches traveled with each pulse
@@ -95,20 +88,13 @@ public class Robot extends IterativeRobot {
     }
     	
     public void autonomousPeriodic() {
-    	gyro.reset();
-        while (isAutonomous()) {
-            double angle = gyro.getAngle(); // get current heading
-            rd.drive(-1.0, -angle*kp); // drive towards heading 0
-            Timer.delay(0.004);
-        }
-        rd.drive(0.0, 0.0);
-
+    	
     }
 
     public void teleopPeriodic() { 
     	/*SmartDashboard.getNumber("Accel x: ", accel.getX());
     	SmartDashboard.getNumber("Accel Y: ", accel.getY());
-    	SmartDashboard.getNumber("Accel Z: ", accel.getZ());*/
+    	SmartDashboard.getNumber("Accel Z: ", accel.getZ());
     	if(controller.isEnabled()){
     		if(((Timer.getFPGATimestamp()-timerStart) > timeToCancel) || controller.onTarget()){
     			controller.disable();
@@ -117,33 +103,32 @@ public class Robot extends IterativeRobot {
     		}
     	}
     	
-    	if(j1.getRawButton(2)){
+ /*   	if(j1.getRawButton(2)){
     		enc.reset();
     		controller.setSetpoint(24);; //destination 24 inches
     		
     		timerStart = Timer.getFPGATimestamp();
-    		timeToCancel = 2;//timeout after 5 seconds
+    		timeToCancel = 5;//timeout after 5 seconds
     		controller.enable();
-    		SmartDashboard.putNumber("Encoder: ",  enc.getDistance());
     	}
-    	else if(j1.getRawButton(1)){
+    	else if(j1.getRawButton(3)){
     		controller.disable();
     		timerStart = -1;
     		timeToCancel = -1;
-    	}
+    	}*/
     	
-    	if(!controller.isEnabled()){
-    		rd.arcadeDrive(-j1.getY(),-j1.getX());
-    		/*if(light.get()){
+/*    	if(!controller.isEnabled()){
+    		rd.arcadeDrive(-j1.getY(),j1.getX());
+    		if(light.get()){
     			System.out.println("Photoswitch: " + light.get());
     		}
     		else{
     			System.out.println("Photoswitch: " + light.get());
-    		}*/
-    	}
+    		}
+    	}*/
     	
     	//rd.arcadeDrive(-j2.getY(),-j2.getX());
-    	//rd.arcadeDrive(-j2.getRawAxis(1),-j2.getRawAxis(0));
+    	rd.arcadeDrive(-j2.getRawAxis(1),-j2.getRawAxis(0));
     	if(j2.getRawAxis(2) != 0){
     		shooter.set(-j2.getRawAxis(2));
     		SmartDashboard.putNumber("Shooter: ", shooter.get());
@@ -151,7 +136,7 @@ public class Robot extends IterativeRobot {
     	else{
     		shooter.set(0);
     	}
-    	/*if(j2.getRawButton(8)){
+    	if(j2.getRawButton(8)){
     		shooter.set(-1);
     		intake.set(.5);
     		Timer.delay(.50);
@@ -161,7 +146,7 @@ public class Robot extends IterativeRobot {
     		Timer.delay(1);
     		shooter.set(0);
     		intake.set(0);
-    	}*/
+    	}
     	if(j2.getRawAxis(3) != 0){
     		intake.set(-1*j2.getRawAxis(3));
     		SmartDashboard.putNumber("Intake: ", intake.get());
@@ -191,26 +176,19 @@ public class Robot extends IterativeRobot {
     	
     	if(j2.getRawButton(2)){
     		inup.set(DoubleSolenoid.Value.kForward);
-    		inup2.set(DoubleSolenoid.Value.kForward);
     	}
     	else if(j2.getRawButton(3)){
     		inup.set(DoubleSolenoid.Value.kReverse);
-    		inup2.set(DoubleSolenoid.Value.kReverse);
     	}
     	else{
     		inup.set(DoubleSolenoid.Value.kOff);
-    		inup2.set(DoubleSolenoid.Value.kOff);
     	}
     	
     	if(j2.getRawButton(1))
     	{
     		inup.set(DoubleSolenoid.Value.kOff);
-    		inup2.set(DoubleSolenoid.Value.kOff);
     	}
     	
-    	
-    	SmartDashboard.putBoolean("LimitSwitch", light.get());
-    	SmartDashboard.putNumber("Encoder: ",  enc.getDistance());
         
     }
     
