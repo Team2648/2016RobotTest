@@ -14,7 +14,6 @@ import edu.wpi.first.wpilibj.PIDOutput;
 import edu.wpi.first.wpilibj.PIDSourceType;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SpeedController;
-import edu.wpi.first.wpilibj.Talon;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Victor;
 import edu.wpi.first.wpilibj.interfaces.Gyro;
@@ -32,16 +31,15 @@ public class Robot extends IterativeRobot {
 	private Joystick j1;
 	private Joystick j2;
 	private SpeedController shooter;
+	private SpeedController shooter2;
 	private SpeedController intake;
-	private SpeedController intakelift1;
-	private SpeedController intakelift2;
-	private SpeedController right;
-	private SpeedController left;
+	private SpeedController right; //right side of drivetrain
+	private SpeedController left; //left side of drivetrain
 	private RobotDrive rd;
-	private DigitalInput light;
-	private Encoder enc;
-	private BuiltInAccelerometer accel;
-	private Gyro gyro;
+	private DigitalInput light; //boolean switch tester
+	private Encoder enc; //drivetrain encoder
+	private BuiltInAccelerometer accel; //accelerometer built into roborio
+	private Gyro gyro; //drivetrain gyro
 	
 	private PIDController controller;
 	private PIDOutput out;
@@ -58,9 +56,8 @@ public class Robot extends IterativeRobot {
     	j1 = new Joystick(1);
     	j2 = new Joystick(0);
     	shooter = new Victor(2);
+    	shooter2 = new Victor(4);
     	intake = new Victor(3);
-    	intakelift1 = new Victor(4);
-    	intakelift2 = new Victor(5);
     	right = new Victor(0);
     	left = new Victor(1);
     	rd = new RobotDrive(left, right);
@@ -71,9 +68,10 @@ public class Robot extends IterativeRobot {
     	inup = new DoubleSolenoid(0,1);
     	inup2 = new DoubleSolenoid(2,3);
     	
-    	enc = new Encoder(0,1,2);
-    	enc.setDistancePerPulse(.1256); //.1256 inches traveled with each pulse
+    	enc = new Encoder(1,2,true, Encoder.EncodingType.k4X);
+    	enc.setDistancePerPulse(.11977); //circumference of wheel/200 (PPR)
     	enc.setPIDSourceType(PIDSourceType.kDisplacement); 
+    	enc.reset();
     	
     	out = new PIDOutput(){
     		@Override
@@ -82,27 +80,26 @@ public class Robot extends IterativeRobot {
     		}
     	};
     	
-    	controller = new PIDController(.7,0,0,enc,out);
+    	controller = new PIDController(.007,0,0,enc,out);
     	controller.setAbsoluteTolerance(.25);
     	controller.disable();
     	
     	timerStart = -1;
     	timeToCancel = -1;
     }
-       
+        
     public void autonomousInit() {
     	
     }
     	
     public void autonomousPeriodic() {
-    	gyro.reset();
-        while (isAutonomous()) {
-            double angle = gyro.getAngle(); // get current heading
-            rd.drive(-1.0, -angle*kp); // drive towards heading 0
-            Timer.delay(0.004);
-        }
-        rd.drive(0.0, 0.0);
 
+    }
+    
+    public void teleopInit(){
+    	gyro.reset();
+    	enc.reset();
+    	
     }
 
     public void teleopPeriodic() { 
@@ -119,38 +116,38 @@ public class Robot extends IterativeRobot {
     	
     	if(j1.getRawButton(2)){
     		enc.reset();
-    		controller.setSetpoint(24);; //destination 24 inches
+    		controller.setSetpoint(24); //destination 24 inches -> NO!! Trying to figure out this value
     		
     		timerStart = Timer.getFPGATimestamp();
-    		timeToCancel = 2;//timeout after 5 seconds
+    		timeToCancel = 10;//timeout after 10 seconds
     		controller.enable();
     	}
-    	else if(j1.getRawButton(1)){
+    	else if(j1.getRawButton(1)){ //this button stops the robot if the button 2 command goes crazy
+    		controller.disable();
+    		timerStart = -1;
+    		timeToCancel = -1;
+    	}
+    	else{ //if time out or distance, end
     		controller.disable();
     		timerStart = -1;
     		timeToCancel = -1;
     	}
     	
     	if(!controller.isEnabled()){
-    		rd.arcadeDrive(-j1.getY(),-j1.getX());
-    		/*if(light.get()){
-    			System.out.println("Photoswitch: " + light.get());
-    		}
-    		else{
-    			System.out.println("Photoswitch: " + light.get());
-    		}*/
+    		rd.arcadeDrive(-j1.getY(),-j1.getX()); //normal arcade drive
     	}
     	
-    	//rd.arcadeDrive(-j2.getY(),-j2.getX());
-    	//rd.arcadeDrive(-j2.getRawAxis(1),-j2.getRawAxis(0));
-    	if(j2.getRawAxis(2) != 0){
+    	
+    	if(j2.getRawAxis(2) != 0){ //set shooter values to the left trigger value
     		shooter.set(-j2.getRawAxis(2));
+    		shooter2.set(-j2.getRawAxis(2));
     		SmartDashboard.putNumber("Shooter: ", shooter.get());
     	}
-    	else{
+    	else{ //stop shooter
     		shooter.set(0);
+    		shooter2.set(0);
     	}
-    	/*if(j2.getRawButton(8)){
+    	/*if(j2.getRawButton(8)){ //runs intake, waits, runs shooter
     		shooter.set(-1);
     		intake.set(.5);
     		Timer.delay(.50);
@@ -161,59 +158,44 @@ public class Robot extends IterativeRobot {
     		shooter.set(0);
     		intake.set(0);
     	}*/
-    	if(j2.getRawAxis(3) != 0){
+    	if(j2.getRawAxis(3) != 0){ //run intake at speed of right trigger
     		intake.set(-1*j2.getRawAxis(3));
     	}
-    	else if(j2.getRawButton(4)){
-    		intake.set(-.5);
-    		shooter.set(-1);
-    	}
-    	else if(j2.getRawButton(5)){
+    	else if(j2.getRawButton(5)){ //run intake into robot
     		intake.set(-1);
     	}
-    	else if(j2.getRawButton(6)){
+    	else if(j2.getRawButton(6)){ //run intake out of robot
     		intake.set(1);
     	}
-    	else{
+    	else{ //stop intake
     		intake.set(0);
     	}
     	
-    	if(j2.getRawAxis(1) != 0){  
-    		intakelift1.set(j2.getRawAxis(1));
-    		intakelift2.set(j2.getRawAxis(1));
-    	}
-    	else{
-    		intakelift1.set(0);
-    		intakelift2.set(0);
-    	}
-    	
-    	if(j2.getRawButton(2)){
+    	if(j2.getRawButton(2)){ //lift intake
     		inup.set(DoubleSolenoid.Value.kForward);
     		inup2.set(DoubleSolenoid.Value.kForward);
     	}
-    	else if(j2.getRawButton(3)){
+    	else if(j2.getRawButton(3)){ //drop intake
     		inup.set(DoubleSolenoid.Value.kReverse);
     		inup2.set(DoubleSolenoid.Value.kReverse);
     	}
-    	else{
-    		inup.set(DoubleSolenoid.Value.kOff);
-    		inup2.set(DoubleSolenoid.Value.kOff);
-    	}
-    	
-    	if(j2.getRawButton(1))
-    	{
+    	else{ //solenoids off
     		inup.set(DoubleSolenoid.Value.kOff);
     		inup2.set(DoubleSolenoid.Value.kOff);
     	}
     	
     	
-    	SmartDashboard.putBoolean("LimitSwitch", light.get());
-    	SmartDashboard.putNumber("Encoder: ",  enc.getDistance());
+    	//reading values
+    	SmartDashboard.putNumber("Encoder Dist: ",  enc.getDistance()); //Distance is in inches
+    	SmartDashboard.putNumber("Encoder: ", enc.get());
+    	SmartDashboard.putNumber("Encoder Rate: ", enc.getRate());
+    	SmartDashboard.putNumber("Gyro: ", gyro.getAngle());
+    	SmartDashboard.putNumber("Encoder Raw", enc.getRaw());
+    	SmartDashboard.putNumber("Controller: ", controller.getSetpoint());
         
     }
     
-    public void testPeriodic() {
-    
+    public void testPeriodic(){
     }
     
 }
