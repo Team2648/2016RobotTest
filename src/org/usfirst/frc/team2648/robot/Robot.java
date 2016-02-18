@@ -51,6 +51,10 @@ public class Robot extends IterativeRobot {
     private Compressor comp;
     private DoubleSolenoid inup;
     private DoubleSolenoid inup2;
+    
+    private double gyroSubAvg;
+    private double gyroTimeStart;
+    private int totalCount;
 	
     public void robotInit() {
     	j1 = new Joystick(1);
@@ -87,6 +91,21 @@ public class Robot extends IterativeRobot {
     	timerStart = -1;
     	timeToCancel = -1;
     }
+    
+    public void disabledInit()
+    {
+    	gyroSubAvg = 0;
+    	gyro.reset();
+    }
+    
+    public void disabledPeriodic()
+    {
+    		gyroSubAvg += gyro.getAngle();
+    		gyroSubAvg /= 2;
+    		
+    		SmartDashboard.putNumber("Gyro", gyro.getAngle());
+    		SmartDashboard.putNumber("Gyro Scaling Value", gyroSubAvg);
+    }
         
     public void autonomousInit() {
     	
@@ -114,9 +133,10 @@ public class Robot extends IterativeRobot {
     		}
     	}
     	
+    	
     	if(j1.getRawButton(2)){
     		enc.reset();
-    		controller.setSetpoint(24); //destination 24 inches -> NO!! Trying to figure out this value
+    		controller.setSetpoint(120); //destination 24 inches -> NO!! Trying to figure out this value
     		
     		timerStart = Timer.getFPGATimestamp();
     		timeToCancel = 10;//timeout after 10 seconds
@@ -172,11 +192,11 @@ public class Robot extends IterativeRobot {
     	}
     	
     	if(j2.getRawButton(2)){ //lift intake
-    		inup.set(DoubleSolenoid.Value.kForward);
+    		//inup.set(DoubleSolenoid.Value.kForward);
     		inup2.set(DoubleSolenoid.Value.kForward);
     	}
     	else if(j2.getRawButton(3)){ //drop intake
-    		inup.set(DoubleSolenoid.Value.kReverse);
+    		//inup.set(DoubleSolenoid.Value.kReverse);
     		inup2.set(DoubleSolenoid.Value.kReverse);
     	}
     	else{ //solenoids off
