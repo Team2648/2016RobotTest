@@ -55,6 +55,7 @@ public class Robot extends IterativeRobot {
     private double gyroSubAvg;
     private double gyroTimeStart;
     private int totalCount;
+    private int count;
 	
     public void robotInit() {
     	j1 = new Joystick(1);
@@ -67,6 +68,7 @@ public class Robot extends IterativeRobot {
     	rd = new RobotDrive(left, right);
     	light = new DigitalInput(3);
     	gyro = new AnalogGyro(0);
+    	count = 0;
     	
     	comp = new Compressor();
     	inup = new DoubleSolenoid(0,1);
@@ -178,10 +180,12 @@ public class Robot extends IterativeRobot {
     		shooter.set(0);
     		intake.set(0);
     	}*/
-    	if(j2.getRawAxis(3) != 0){ //run intake at speed of right trigger
+    	
+    	//Need to mess around with sensitivity of light sensor 
+    	if(j2.getRawAxis(3) != 0 && !light.get()){ //run intake at speed of right trigger
     		intake.set(-1*j2.getRawAxis(3));
     	}
-    	else if(j2.getRawButton(5)){ //run intake into robot
+    	else if(j2.getRawButton(5) && !light.get()){ //run intake into robot
     		intake.set(-1);
     	}
     	else if(j2.getRawButton(6)){ //run intake out of robot
@@ -204,6 +208,8 @@ public class Robot extends IterativeRobot {
     		inup2.set(DoubleSolenoid.Value.kOff);
     	}
     	
+
+    	
     	
     	//reading values
     	SmartDashboard.putNumber("Encoder Dist: ",  enc.getDistance()); //Distance is in inches
@@ -212,7 +218,7 @@ public class Robot extends IterativeRobot {
     	SmartDashboard.putNumber("Gyro: ", gyro.getAngle());
     	SmartDashboard.putNumber("Encoder Raw", enc.getRaw());
     	SmartDashboard.putNumber("Controller: ", controller.getSetpoint());
-        
+    	SmartDashboard.putBoolean("Light Sensor: ", light.get());
     }
     
     public void testPeriodic(){
