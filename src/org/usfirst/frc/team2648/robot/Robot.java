@@ -39,14 +39,18 @@ public class Robot extends IterativeRobot {
 	private DigitalInput light; //boolean switch tester
 	private Encoder enc; //drivetrain encoder
 	private BuiltInAccelerometer accel; //accelerometer built into roborio
-	private Gyro gyro; //drivetrain gyro
+	private AnalogGyro gyro; //drivetrain gyro
 	
-	private PIDController controller;
+	private PIDController controller; //for encoder
+	private PIDController gcontroller; //for gyro
 	private PIDOutput out;
     
 	private double timerStart;
     private double timeToCancel;
-    private double kp = 0.03;
+    private double kp = 0.01;
+    private double ki = 0.01;
+    private double kd = 0;
+    private double ktol = .25;
     
     private Compressor comp;
     private DoubleSolenoid inup;
@@ -67,12 +71,17 @@ public class Robot extends IterativeRobot {
     	left = new Victor(1);
     	rd = new RobotDrive(left, right);
     	light = new DigitalInput(3);
-    	gyro = new AnalogGyro(0);
     	count = 0;
     	
     	comp = new Compressor();
     	inup = new DoubleSolenoid(0,1);
     	inup2 = new DoubleSolenoid(2,3);
+    	
+    	
+    	gyro = new AnalogGyro(0);
+    	gyro.setSensitivity(.007);
+    	gyro.calibrate();
+    	gyro.reset();
     	
     	enc = new Encoder(1,2,true, Encoder.EncodingType.k4X);
     	enc.setDistancePerPulse(.11977); //circumference of wheel/200 (PPR)
@@ -90,6 +99,10 @@ public class Robot extends IterativeRobot {
     	controller.setAbsoluteTolerance(.25);
     	controller.disable();
     	
+    	gcontroller = new PIDController(kp,ki,kd,gyro,out);
+    	gcontroller.setAbsoluteTolerance(ktol);
+    	gcontroller.disable();
+    	
     	timerStart = -1;
     	timeToCancel = -1;
     }
@@ -102,11 +115,11 @@ public class Robot extends IterativeRobot {
     
     public void disabledPeriodic()
     {
-    		gyroSubAvg += gyro.getAngle();
-    		gyroSubAvg /= 2;
+    		//gyroSubAvg += gyro.getAngle();
+    		//gyroSubAvg /= 2;
     		
     		SmartDashboard.putNumber("Gyro", gyro.getAngle());
-    		SmartDashboard.putNumber("Gyro Scaling Value", gyroSubAvg);
+    		//SmartDashboard.putNumber("Gyro Scaling Value", gyroSubAvg);
     }
         
     public void autonomousInit() {
@@ -196,11 +209,11 @@ public class Robot extends IterativeRobot {
     	}
     	
     	if(j2.getRawButton(2)){ //lift intake
-    		//inup.set(DoubleSolenoid.Value.kForward);
+    		inup.set(DoubleSolenoid.Value.kForward);
     		inup2.set(DoubleSolenoid.Value.kForward);
     	}
     	else if(j2.getRawButton(3)){ //drop intake
-    		//inup.set(DoubleSolenoid.Value.kReverse);
+    		inup.set(DoubleSolenoid.Value.kReverse);
     		inup2.set(DoubleSolenoid.Value.kReverse);
     	}
     	else{ //solenoids off
@@ -220,6 +233,8 @@ public class Robot extends IterativeRobot {
     	SmartDashboard.putNumber("Controller: ", controller.getSetpoint());
     	SmartDashboard.putBoolean("Light Sensor: ", light.get());
     }
+    
+
     
     public void testPeriodic(){
     }
